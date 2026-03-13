@@ -1,0 +1,20 @@
+{
+    "name": "F4N70M/html-dom-parser",
+    "description": "Библиотека для парсинга HTML и работы с DOM",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "F4N70M",
+            "email": "edkontr@gmail.com.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "HtmlDomParser\\": "src/HtmlDomParser/"
+        }
+    }
+}
