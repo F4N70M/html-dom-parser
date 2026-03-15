@@ -1,27 +1,27 @@
-[← К оглавлению](../README.md#📖-документация)
+[← К оглавлению](../README.md#-документация)
 
-# Система модулей
+# Система модулей {#modules}
 
 В этом разделе рассматривается создание, обнаружение и подключение модулей для расширения возможностей библиотеки. Модули оформляются как Composer-пакеты и автоматически интегрируются в процесс парсинга.
 
-## Общая концепция
+## Общая концепция {#overview}
 
 Модули — это основной способ расширения функциональности HtmlDomParser. Они позволяют:
 
-- Подписываться на события и модифицировать контекст узлов
+- Подписываться на события и модифицировать контекст узлов (см. [Событийная модель](./03-events-modules--01-event-system.md))
 - Добавлять новые методы для работы с готовым деревом
 - Предоставлять дополнительные сервисы и утилиты
 - Интегрироваться с другими библиотеками
 
 Модули автоматически обнаруживаются через секцию `extra.modules` в `composer.json` и загружаются с проверкой зависимостей.
 
-## Жизненный цикл модуля
+## Жизненный цикл модуля {#lifecycle}
 
 ```
 composer.json (extra.modules)
          │
          ▼
-   Обнаружение (ModuleManager::discover())
+   Обнаружение (ModuleManagerInterface::discover())
          │
          ▼
    Проверка зависимостей
@@ -30,121 +30,64 @@ composer.json (extra.modules)
    Загрузка классов модулей
          │
          ▼
-   Инициализация (Module::initialize())
+   Инициализация (ModuleInterface::initialize())
          │
          ▼
-   Подписка на события
+   Подписка на события через EventDispatcherInterface
          │
          ▼
    Модуль готов к использованию
 ```
 
-## API Reference
+## API Reference {#api-reference}
 
-### ModuleInterface
+### ModuleInterface {#moduleinterface}
+
+Базовый интерфейс для всех модулей. Полное описание методов см. в [Справочнике API](./04-appendix--02-api-reference.md#moduleinterface).
 
 ```php
 namespace HtmlDomParser\Contract;
 
 interface ModuleInterface
 {
-    /**
-     * Уникальное имя модуля.
-     *
-     * @return string
-     */
     public function getName(): string;
-
-    /**
-     * Список имён модулей, от которых зависит данный.
-     *
-     * @return string[]
-     */
     public function getDependencies(): array;
-
-    /**
-     * Проверяет совместимость с указанной версией ядра.
-     *
-     * @param string $version
-     * @return bool
-     */
     public function supportsCoreVersion(string $version): bool;
-
-    /**
-     * Инициализирует модуль, подписываясь на события через диспетчер.
-     *
-     * @param EventDispatcherInterface $dispatcher
-     */
     public function initialize(EventDispatcherInterface $dispatcher): void;
 }
 ```
 
-### ModuleManagerInterface
+### ModuleManagerInterface {#modulemanagerinterface}
+
+Менеджер модулей отвечает за обнаружение, загрузку и предоставление доступа к модулям. Доступен через [`ParserInterface::getModuleManager()`](./04-appendix--02-api-reference.md#parserinterface). Полное описание методов см. в [Справочнике API](./04-appendix--02-api-reference.md#modulemanagerinterface).
 
 ```php
 namespace HtmlDomParser\Contract;
 
 interface ModuleManagerInterface
 {
-    /**
-     * Обнаруживает доступные модули (из composer.json extra.modules).
-     *
-     * @return array Список информации о модулях
-     */
     public function discover(): array;
-
-    /**
-     * Загружает и инициализирует все модули с проверкой зависимостей.
-     *
-     * @throws \RuntimeException При циклических зависимостях или несовместимости
-     */
     public function loadModules(): void;
-
-    /**
-     * Возвращает экземпляр модуля по имени.
-     *
-     * @param string $name
-     * @return ModuleInterface|null
-     */
     public function getModule(string $name): ?ModuleInterface;
-
-    /**
-     * Проверяет, загружен ли модуль с указанным именем.
-     *
-     * @param string $name
-     * @return bool
-     */
     public function hasModule(string $name): bool;
-
-    /**
-     * Возвращает список всех загруженных модулей.
-     *
-     * @return ModuleInterface[]
-     */
     public function getLoadedModules(): array;
-
-    /**
-     * Регистрирует модуль вручную (без автоматического обнаружения).
-     *
-     * @param ModuleInterface $module
-     */
     public function registerModule(ModuleInterface $module): void;
 }
 ```
 
-## Предварительные требования
+## Предварительные требования {#prerequisites}
 
 Для создания модуля необходимо:
 
-- Понимание [событийной модели](./03-advanced-architecture--02-event-system.md)
+- Понимание [событийной модели](./03-events-modules--01-event-system.md)
 - Базовые знания Composer и создания пакетов
-- Знание структуры [контекста узла](./03-advanced-architecture--01-context-system.md)
+- Знание структуры [контекста узла](./02-core--02-context-system.md)
 
-## Пошаговые инструкции по созданию модуля
+## Пошаговые инструкции по созданию модуля {#step-by-step}
 
-### Шаг 1: Создание класса модуля
+### Шаг 1: Создание класса модуля {#step-1}
 
-Создайте класс, реализующий `ModuleInterface`:
+Создайте класс, реализующий [`ModuleInterface`](./04-appendix--02-api-reference.md#moduleinterface):
 
 ```php
 <?php
@@ -182,7 +125,7 @@ class SeoModule implements ModuleInterface
     
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
-        // Подписка на события будет здесь
+        // Подписка на события
         $dispatcher->subscribe('post-node', [$this, 'onPostNode']);
     }
     
@@ -190,7 +133,6 @@ class SeoModule implements ModuleInterface
     {
         // Логика модуля
         if ($context->getName() === 'img' && !$context->hasAttribute('alt')) {
-            // Добавляем предупреждение для изображений без alt
             $context->setAttribute('data-seo-warning', 'missing-alt');
         }
         
@@ -199,7 +141,7 @@ class SeoModule implements ModuleInterface
 }
 ```
 
-### Шаг 2: Определение зависимостей
+### Шаг 2: Определение зависимостей {#step-2}
 
 Если ваш модуль зависит от других модулей, укажите их в `getDependencies()`:
 
@@ -212,9 +154,9 @@ public function getDependencies(): array
 
 Менеджер модулей автоматически загрузит зависимости перед вашим модулем.
 
-### Шаг 3: Реализация инициализации
+### Шаг 3: Реализация инициализации {#step-3}
 
-В методе `initialize()` подпишитесь на необходимые события:
+В методе `initialize()` подпишитесь на необходимые события с учетом приоритетов:
 
 ```php
 public function initialize(EventDispatcherInterface $dispatcher): void
@@ -226,7 +168,7 @@ public function initialize(EventDispatcherInterface $dispatcher): void
 }
 ```
 
-### Шаг 4: Добавление секции в composer.json
+### Шаг 4: Добавление секции в composer.json {#step-4}
 
 В `composer.json` вашего пакета добавьте секцию `extra.modules`:
 
@@ -257,7 +199,7 @@ public function initialize(EventDispatcherInterface $dispatcher): void
 }
 ```
 
-### Шаг 5: Публикация или локальное подключение
+### Шаг 5: Публикация или локальное подключение {#step-5}
 
 Опубликуйте пакет на Packagist или используйте локальный репозиторий:
 
@@ -275,9 +217,9 @@ public function initialize(EventDispatcherInterface $dispatcher): void
 }
 ```
 
-## Примеры кода
+## Примеры кода {#examples}
 
-### Пример 1: Минимальный модуль
+### Пример 1: Минимальный модуль {#example-minimal}
 
 ```php
 <?php
@@ -311,12 +253,16 @@ class MinimalModule implements ModuleInterface
 }
 ```
 
-### Пример 2: Модуль с конфигурацией
+### Пример 2: Модуль с конфигурацией {#example-configurable}
 
 ```php
 <?php
 
 namespace MyModule;
+
+use HtmlDomParser\Contract\ModuleInterface;
+use HtmlDomParser\Contract\EventDispatcherInterface;
+use HtmlDomParser\Contract\NodeContextInterface;
 
 class ConfigurableModule implements ModuleInterface
 {
@@ -347,7 +293,7 @@ class ConfigurableModule implements ModuleInterface
     
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
-        $dispatcher->subscribe('pre-node', function($context) {
+        $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
             if ($this->options['add-class']) {
                 $class = $context->getAttribute('class') ?? '';
                 $context->setAttribute('class', trim($class . ' ' . $this->options['add-class']));
@@ -358,7 +304,7 @@ class ConfigurableModule implements ModuleInterface
 }
 ```
 
-### Пример 3: composer.json модуля с зависимостями
+### Пример 3: composer.json модуля с зависимостями {#example-composer}
 
 ```json
 {
@@ -388,7 +334,7 @@ class ConfigurableModule implements ModuleInterface
 }
 ```
 
-### Пример 4: Использование модуля в проекте
+### Пример 4: Использование модуля в проекте {#example-usage}
 
 ```php
 <?php
@@ -416,31 +362,69 @@ $document = $parser->parse();
 // Модули уже повлияли на результат через события
 ```
 
-## Возможные проблемы
+### Пример 5: Модуль, добавляющий ошибки валидации {#example-validation}
 
-При работе с модулями могут возникать типичные сложности: циклические зависимости, несовместимость версий, проблемы с обнаружением модулей и конфликты обработчиков событий.
+```php
+<?php
 
-Подробное описание этих проблем и методы их решения вы найдете в разделе:
+class ValidationModule implements ModuleInterface
+{
+    private ErrorHandlerInterface $errorHandler;
+    
+    public function getName(): string
+    {
+        return 'validator';
+    }
+    
+    public function getDependencies(): array
+    {
+        return [];
+    }
+    
+    public function supportsCoreVersion(string $version): bool
+    {
+        return true;
+    }
+    
+    public function initialize(EventDispatcherInterface $dispatcher): void
+    {
+        // Получение обработчика ошибок (зависит от реализации)
+        $this->errorHandler = $errorHandler;
+        
+        $dispatcher->subscribe('post-node', [$this, 'validateNode']);
+    }
+    
+    public function validateNode(NodeContextInterface $context): NodeContextInterface
+    {
+        if ($context->getName() === 'img' && !$context->hasAttribute('alt')) {
+            // Добавление ошибки в обработчик
+            // См. раздел [Обработка ошибок](./02-core--04-error-handling.md)
+        }
+        return $context;
+    }
+}
+```
 
-👉 **[FAQ: Проблемы с модулями](./05-appendix--01-faq-troubleshooting.md#проблемы-с-модулями)**
-
-Там рассматриваются:
-- Циклические зависимости между модулями
-- Несовместимость с версией ядра
-- Модуль не обнаруживается (ошибки в секции extra)
-- Конфликты обработчиков событий
-
-## Лучшие практики
+## Лучшие практики {#best-practices}
 
 1. **Именование модулей** — используйте уникальные имена, желательно в формате `vendor/name`
 2. **Обработка ошибок** — не допускайте падения парсера из-за ошибок в модуле
 3. **Документация** — документируйте события, на которые подписывается модуль
 4. **Тестирование** — тестируйте модуль с разными версиями ядра
-5. **Конфигурация** — используйте конфигурацию через extra.modules для гибкости
+5. **Конфигурация** — используйте конфигурацию через `extra.modules` для гибкости
 
-## Связанные разделы
+## Возможные проблемы {#troubleshooting}
 
-- [Событийная модель](./03-advanced-architecture--02-event-system.md) — подписка на события
-- [Система контекстов](./03-advanced-architecture--01-context-system.md) — модификация узлов
-- [Ядро системы](./02-core-components--01-core-interfaces.md) — базовые интерфейсы
-- [Обработка ошибок](./03-advanced-architecture--04-error-handling.md) — обработка ошибок в модулях
+При работе с модулями могут возникать типичные сложности: циклические зависимости, несовместимость версий, проблемы с обнаружением модулей и конфликты обработчиков событий.
+
+Подробное описание этих проблем и методы их решения вы найдете в разделе:
+
+👉 **[FAQ: Проблемы с модулями](./04-appendix--01-faq.md#проблемы-с-модулями)**
+
+## Связанные разделы {#see-also}
+
+- [Справочник API: ModuleInterface](./04-appendix--02-api-reference.md#moduleinterface)
+- [Справочник API: ModuleManagerInterface](./04-appendix--02-api-reference.md#modulemanagerinterface)
+- [Событийная модель](./03-events-modules--01-event-system.md) — подписка на события
+- [Система контекстов](./02-core--02-context-system.md) — модификация узлов
+- [Обработка ошибок](./02-core--04-error-handling.md) — добавление ошибок из модулей

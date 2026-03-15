@@ -1,21 +1,21 @@
-[← К оглавлению](../README.md#📖-документация)
+[← К оглавлению](../README.md#-документация)
 
-# Событийная модель
+# Событийная модель {#event-system}
 
 В этом разделе рассматривается событийная система библиотеки, которая позволяет расширять функциональность парсера, вмешиваясь в процесс обработки узлов на ключевых этапах.
 
-## Общая концепция
+## Общая концепция {#overview}
 
-Событийная модель построена вокруг диспетчера событий (`EventDispatcherInterface`), который оповещает все подписанные модули и обработчики в ключевые моменты обработки каждого узла. Это позволяет:
+Событийная модель построена вокруг диспетчера событий ([`EventDispatcherInterface`](./04-appendix--02-api-reference.md#eventdispatcherinterface)), который оповещает все подписанные модули и обработчики в ключевые моменты обработки каждого узла. Это позволяет:
 
 - Модифицировать контекст узла до и после обработки детей
 - Влиять на процесс схлопывания строчных элементов
 - Добавлять собственную логику валидации
 - Обогащать узлы дополнительной информацией
 
-### Работа с контекстом через события
+### Работа с контекстом через события {#context-modification}
 
-Объект контекста (`NodeContextInterface`), передаваемый в обработчики событий, реализует механизм **ленивой выдачи информации** с кэшированием:
+Объект контекста ([`NodeContextInterface`](./04-appendix--02-api-reference.md#nodecontextinterface)), передаваемый в обработчики событий, реализует механизм **ленивой выдачи информации** с кэшированием:
 
 - Если свойство контекста еще не заполнено, оно автоматически извлекается из оригинального DOM-узла при первом обращении
 - После извлечения значение кэшируется в контексте для последующих вызовов
@@ -37,7 +37,7 @@ $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
 
 Таким образом, события дают полный контроль над данными узла на всех этапах его жизненного цикла.
 
-## Поток событий в жизненном цикле узла
+## Поток событий в жизненном цикле узла {#event-flow}
 
 ```
 Начало обработки узла
@@ -46,7 +46,7 @@ $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
     pre-node ◄──────────────────┐
          │                      │
          ▼                      │
-Обработка детей                 │
+Обработка детей (рекурсивно)    │
          │                      │
          ▼                      │
    pre-inline-collapse ◄────────┤
@@ -64,7 +64,9 @@ $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
 Конец обработки узла
 ```
 
-## Список событий
+Подробнее о жизненном цикле узла читайте в разделе [Система контекстов](./02-core--02-context-system.md#node-lifecycle).
+
+## Список событий {#event-list}
 
 | Событие | Момент вызова | Типичное использование |
 | :--- | :--- | :--- |
@@ -73,9 +75,9 @@ $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
 | `pre-inline-collapse` | Перед запуском механизма схлопывания (если `allChildrenIsInline() === true`) | Изменение логики схлопывания, отключение схлопывания для определенных случаев |
 | `post-inline-collapse` | После схлопывания, но до `post-node` | Модификация полученных entities, корректировка объединенного текста |
 
-## API Reference
+## API Reference {#api-reference}
 
-### EventDispatcherInterface
+### EventDispatcherInterface {#eventdispatcherinterface}
 
 ```php
 namespace HtmlDomParser\Contract;
@@ -118,9 +120,11 @@ interface EventDispatcherInterface
 }
 ```
 
-## Детальное описание
+Полное описание интерфейса доступно в [Справочнике API](./04-appendix--02-api-reference.md#eventdispatcherinterface).
 
-### Сигнатура обработчика
+## Детальное описание {#details}
+
+### Сигнатура обработчика {#handler-signature}
 
 Каждый обработчик события должен соответствовать строгой сигнатуре:
 
@@ -134,7 +138,7 @@ function(NodeContextInterface $context): NodeContextInterface
 3. Нельзя заменить контекст другим объектом — только модифицировать существующий
 4. Исключения в обработчике прерывают выполнение цепочки
 
-### Приоритеты обработчиков
+### Приоритеты обработчиков {#priorities}
 
 Обработчики с более высоким приоритетом вызываются раньше:
 
@@ -151,9 +155,21 @@ $dispatcher->subscribe('pre-node', $handler3);
 
 Если несколько обработчиков имеют одинаковый приоритет, порядок вызова не гарантируется.
 
-## Примеры кода
+### Получение диспетчера событий {#getting-dispatcher}
 
-### Пример 1: Добавление атрибута всем div-элементам
+Диспетчер событий доступен через менеджер модулей или внедряется в модули при инициализации:
+
+```php
+// Внутри модуля
+public function initialize(EventDispatcherInterface $dispatcher): void
+{
+    $this->dispatcher = $dispatcher;
+}
+```
+
+## Примеры кода {#examples}
+
+### Пример 1: Добавление атрибута всем div-элементам {#example-add-attribute}
 
 ```php
 <?php
@@ -161,28 +177,22 @@ $dispatcher->subscribe('pre-node', $handler3);
 use HtmlDomParser\Parser;
 use HtmlDomParser\Contract\NodeContextInterface;
 
-// Создаем парсер
 $parser = new Parser($html);
-$dispatcher = $parser->getEventDispatcher(); // гипотетический метод получения диспетчера
+// Получение диспетчера (зависит от реализации)
+$dispatcher = $parser->getModuleManager()->getEventDispatcher();
 
-// Подписываемся на событие pre-node
 $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
-    // Добавляем атрибут всем div-ам
     if ($context->getName() === 'div') {
-        $attributes = $context->getNode()->attributes;
-        // Работаем через DOMNode, так как контекст еще не стал элементом
-        // В реальности потребуется более сложная логика
+        // Добавляем атрибут с временной меткой
         $context->setAttribute('data-parsed', date('Y-m-d H:i:s'));
     }
-    
     return $context;
 }, 10);
 
-// Запускаем парсинг
 $document = $parser->parse();
 ```
 
-### Пример 2: Отключение схлопывания для определенных элементов
+### Пример 2: Отключение схлопывания для определенных элементов {#example-disable-collapse}
 
 ```php
 <?php
@@ -192,18 +202,17 @@ $dispatcher->subscribe('pre-inline-collapse', function(NodeContextInterface $con
     
     // Не схлопывать содержимое внутри тегов <pre> и <code>
     if (in_array($tag, ['pre', 'code'])) {
-        // Возвращаем контекст без изменений, но схлопывание не запустится?
-        // В реальности нужно изменить условие allChildrenIsInline()
-        // или установить специальный флаг в контексте
+        // Модифицируем контекст, чтобы allChildrenIsInline() вернул false
+        // Например, можно изменить тип контекста или установить флаг
     }
     
     return $context;
 });
 ```
 
-> **Примечание:** Для полного контроля над схлопыванием требуется более глубокая модификация контекста, включая изменение его свойств.
+> **Примечание:** Для полного контроля над схлопыванием требуется более глубокая модификация контекста. Подробнее в разделе [InlineCollapser](./02-core--03-utilities.md#inline-collapser).
 
-### Пример 3: Логирование процесса парсинга
+### Пример 3: Логирование процесса парсинга {#example-logging}
 
 ```php
 <?php
@@ -227,16 +236,13 @@ $dispatcher->subscribe('pre-inline-collapse', function(NodeContextInterface $con
 });
 ```
 
-### Пример 4: Валидация структуры HTML
+### Пример 4: Валидация структуры HTML {#example-validation}
 
 ```php
 <?php
 
 $dispatcher->subscribe('post-node', function(NodeContextInterface $context) {
     static $validationErrors = [];
-    
-    // Проверяем, есть ли у элемента неразрешенные дети
-    // (это уже проверяется библиотекой, но мы можем добавить свою логику)
     
     if ($context->getName() === 'ul') {
         foreach ($context->getChildren() as $child) {
@@ -246,11 +252,14 @@ $dispatcher->subscribe('post-node', function(NodeContextInterface $context) {
         }
     }
     
+    // Здесь можно добавить ошибки в обработчик ошибок
+    // См. раздел [Обработка ошибок](./02-core--04-error-handling.md)
+    
     return $context;
 });
 ```
 
-### Пример 5: Модуль для подсчета вложенности
+### Пример 5: Модуль для подсчета вложенности {#example-nesting}
 
 ```php
 <?php
@@ -286,7 +295,7 @@ class NestingCounterModule implements ModuleInterface
         $currentDepth = $parent ? ($this->depth[spl_object_id($parent)] + 1) : 0;
         $this->depth[spl_object_id($context)] = $currentDepth;
         
-        // Добавляем глубину как атрибут (позже станет атрибутом элемента)
+        // Добавляем глубину как атрибут
         $context->setAttribute('data-depth', $currentDepth);
         
         return $context;
@@ -294,14 +303,13 @@ class NestingCounterModule implements ModuleInterface
     
     public function onPostNode(NodeContextInterface $context): NodeContextInterface
     {
-        // Очищаем временные данные
         unset($this->depth[spl_object_id($context)]);
         return $context;
     }
 }
 ```
 
-### Пример 6: Модификация Data через контекст
+### Пример 6: Модификация Data через контекст {#example-modify-data}
 
 ```php
 <?php
@@ -309,22 +317,20 @@ class NestingCounterModule implements ModuleInterface
 $dispatcher->subscribe('post-node', function(NodeContextInterface $context) {
     // Модифицируем Data для всех ссылок
     if ($context->getName() === 'a') {
-        $originalUrl = $context->getData(); // Получаем原始льное значение
+        $originalUrl = $context->getData();
         $context->setData('https://proxy.com/?url=' . urlencode($originalUrl));
     }
-    
     return $context;
 });
 
-// После парсинга все ссылки будут иметь модифицированный Data
 $document = $parser->parse();
 $link = $document->getChildren()->get(0);
 echo $link->getData(); // https://proxy.com/?url=https://original.com
 ```
 
-## Создание собственных событий
+## Создание собственных событий {#custom-events}
 
-Модули могут генерировать собственные события, хотя это требует доступа к диспетчеру:
+Модули могут генерировать собственные события:
 
 ```php
 class CustomModule implements ModuleInterface
@@ -334,25 +340,21 @@ class CustomModule implements ModuleInterface
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
         $this->dispatcher = $dispatcher;
-        
-        // Подписываемся на системные события
         $dispatcher->subscribe('post-node', [$this, 'onPostNode']);
     }
     
     public function onPostNode(NodeContextInterface $context): NodeContextInterface
     {
-        // Генерируем пользовательское событие
         if ($context->getName() === 'article') {
-            // Создаем копию контекста или специальный объект для события
+            // Генерируем пользовательское событие
             $this->dispatcher->dispatch('custom.article.processed', $context);
         }
-        
         return $context;
     }
 }
 ```
 
-## Рекомендации по использованию
+## Рекомендации по использованию {#best-practices}
 
 1. **Не изменяйте структуру дерева в обработчиках** — добавление/удаление узлов лучше делать через стандартные механизмы
 2. **Будьте осторожны с производительностью** — обработчики вызываются для каждого узла
@@ -360,9 +362,11 @@ class CustomModule implements ModuleInterface
 4. **Всегда возвращайте контекст** — даже если не вносили изменений
 5. **Не полагайтесь на порядок вызова** обработчиков с одинаковым приоритетом
 
-## Связанные разделы
+## Связанные разделы {#see-also}
 
-- [Система модулей](./03-advanced-architecture--03-modules.md) — модули как основной способ подписки на события
-- [Система контекстов](./03-advanced-architecture--01-context-system.md) — что можно модифицировать в контексте
-- [InlineCollapser](./04-utilities--02-inline-collapser.md) — события pre-inline-collapse/post-inline-collapse
-- [Ядро системы](./02-core-components--01-core-interfaces.md) — базовые интерфейсы
+- [Справочник API: EventDispatcherInterface](./04-appendix--02-api-reference.md#eventdispatcherinterface)
+- [Справочник API: NodeContextInterface](./04-appendix--02-api-reference.md#nodecontextinterface)
+- [Система модулей](./03-events-modules--02-modules.md) — модули как основной способ подписки на события
+- [Система контекстов](./02-core--02-context-system.md) — что можно модифицировать в контексте
+- [InlineCollapser](./02-core--03-utilities.md#inline-collapser) — события pre-inline-collapse/post-inline-collapse
+- [Модель данных](./02-core--01-data-model.md) — модификация Data через события
