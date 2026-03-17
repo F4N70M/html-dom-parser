@@ -1,8 +1,6 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/f4n70m/html-dom-parser.svg?style=flat-square)](https://packagist.org/packages/f4n70m/html-dom-parser)
 [![PHP Version](https://img.shields.io/packagist/php-v/f4n70m/html-dom-parser.svg?style=flat-square)](https://packagist.org/packages/f4n70m/html-dom-parser)
 [![License](https://img.shields.io/github/license/f4n70m/html-dom-parser.svg?style=flat-square)](https://github.com/f4n70m/html-dom-parser/blob/main/LICENSE)
-![PHP](https://img.shields.io/badge/php-%23777BB4.svg?style=for-the-badge&logo=php&logoColor=white)
-![Composer](https://img.shields.io/badge/Composer-885630?style=for-the-badge&logo=composer&logoColor=white)
 
 **HtmlDomParser** — это PHP-библиотека для продвинутого парсинга HTML, которая преобразует исходный код в удобное объектное дерево с богатой семантической информацией. Это не просто очередной парсер, а полноценный фреймворк для построения семантически-обогащённого DOM-дерева.
 
