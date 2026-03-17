@@ -108,7 +108,6 @@ class Parser implements ParserInterface
                     // TODOO: обработать doctype
                     continue;
                 }
-                // var_dump($childNode);
                 $element = $this->parseNode($childNode, ContextType::DOCUMENT);
                 if ($element !== null) {
                     $document->getChildren()->push($element);
@@ -207,10 +206,6 @@ class Parser implements ParserInterface
 	        $children = new ElementList();
 	        // Предполагаем, что контекст хранит тип контекста для дочерних узлов
 	        $childContextType = $context->getChildrenContextType();
-
-            // echo '<pre>';
-            // var_dump($context->getNode()->childNodes);
-            // echo '</pre>';
 
 	        foreach ($context->getNode()->childNodes as $childNode) {
 	            $childElement = $this->parseNode(

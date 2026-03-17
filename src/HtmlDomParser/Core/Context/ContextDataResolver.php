@@ -31,14 +31,15 @@ class ContextDataResolver implements ContextDataResolverInterface
      * @return void
      */
 	public function setRules(ContextDataResolverRulesInterface $rules): void{
-		$this->
+		$this->rules = $rules;
+	}
 
     /**
      * Возвращает правила для тегов.
      * 
      * @return ContextDataResolverRulesInterface|null
      */
-	public function getRules(): ?ContextDataResolverRulesInterface{
+	public function getRules(): ?ContextDataResolverRulesInterface {
 		return $this->rules;
 	}
 

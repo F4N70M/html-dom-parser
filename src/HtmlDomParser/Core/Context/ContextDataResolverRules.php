@@ -31,8 +31,6 @@ class ContextDataResolverRules implements ContextDataResolverRulesInterface
 	public function __construct(ContextDataResolver $dataResolver) {
 		$this->dataResolver = $dataResolver;
 		$this->map = $this->buildDefaultMap();
-		var_dump([$this->dataResolver, 'resolveImgLabel']);
-		var_dump(is_callable([$this->dataResolver, 'resolveImgLabel']));
 	}
 
 	/**
@@ -46,7 +44,6 @@ class ContextDataResolverRules implements ContextDataResolverRulesInterface
 	{
 		/** Проверить алиасы (синонимы) тега **/
 		$tag = $this->getCurrentTagName($tag);
-		/** Проверить кеш **/
 
 		return $this->getDecodeConfig($tag);
 	}
