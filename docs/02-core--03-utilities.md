@@ -2,15 +2,15 @@
 
 # Утилиты {#utilities}
 
-В этом разделе рассматриваются два ключевых служебных компонента библиотеки: `DataResolver` для извлечения основного содержимого и `InlineCollapser` для схлопывания строчных элементов.
+В этом разделе рассматриваются два ключевых служебных компонента библиотеки: `ContextDataResolver` для извлечения основного содержимого и `InlineCollapser` для схлопывания строчных элементов.
 
-## DataResolver {#dataresolver}
+## ContextDataResolver {#contextdataresolver}
 
-**DataResolver** — это внутренний сервис библиотеки, реализующий [`DataResolverInterface`](./04-appendix--02-api-reference.md#dataresolverinterface), который определяет, что считать основным содержимым (Data) для каждого типа узла.
+**ContextDataResolver** — это внутренний сервис библиотеки, реализующий [`ContextDataResolverInterface`](./04-appendix--02-api-reference.md#contextdataresolverinterface), который определяет, что считать основным содержимым (Data) для каждого типа узла.
 
 ### Назначение {#dataresolver-purpose}
 
-Основная задача DataResolver — ответить на вопрос: **что является смысловым содержимым этого узла?** Для разных тегов ответ может быть разным:
+Основная задача ContextDataResolver — ответить на вопрос: **что является смысловым содержимым этого узла?** Для разных тегов ответ может быть разным:
 
 - Для ссылки (`<a>`) — это атрибут `href`
 - Для изображения (`<img>`) — это атрибут `src`
@@ -22,7 +22,7 @@
 ```php
 namespace HtmlDomParser\Contract;
 
-interface DataResolverInterface
+interface ContextDataResolverInterface
 {
     /**
      * Извлекает основное содержимое (data) из DOM-узла.
@@ -50,21 +50,21 @@ interface DataResolverInterface
 | `#comment` | Текст комментария | `'Это комментарий'` |
 | `#document` | `null` | `null` |
 
-### Когда вызывается DataResolver {#dataresolver-when}
+### Когда вызывается ContextDataResolver {#dataresolver-when}
 
-DataResolver может быть вызван в два разных момента:
+ContextDataResolver может быть вызван в два разных момента:
 
 1. **В контексте:** при первом обращении к `$context->getData()` внутри обработчиков событий. Результат кэшируется в контексте и может быть изменён через `$context->setData()`.
-2. **При создании элемента:** метод [`ContextConverterInterface::contextToElement()`](./04-appendix--02-api-reference.md#contextconverterinterface) вызывает `DataResolver`, если данные не были запрошены ранее.
+2. **При создании элемента:** метод [`ContextConverterInterface::contextToElement()`](./04-appendix--02-api-reference.md#contextconverterinterface) вызывает `ContextDataResolver`, если данные не были запрошены ранее.
 
-Разработчик обычно не вызывает `DataResolver` напрямую — результат его работы доступен через метод `getData()` у элемента:
+Разработчик обычно не вызывает `ContextDataResolver` напрямую — результат его работы доступен через метод `getData()` у элемента:
 
 ```php
 $element = $document->getChildren()->get(0);
-$data = $element->getData(); // Здесь уже результат работы DataResolver
+$data = $element->getData(); // Здесь уже результат работы ContextDataResolver
 ```
 
-### Примеры использования DataResolver {#dataresolver-examples}
+### Примеры использования ContextDataResolver {#dataresolver-examples}
 
 #### Получение Data для разных элементов
 
@@ -113,11 +113,13 @@ echo 'Data: ' . $link->getData() . PHP_EOL;   // "https://google.com"
 #### Модификация Data через модуль
 
 ```php
+use HtmlDomParser\Core\Event\EventConstant;
+
 class SeoModule implements ModuleInterface
 {
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
-        $dispatcher->subscribe('post-node', [$this, 'onPostNode']);
+        $dispatcher->subscribe(EventConstant::POST_NODE, [$this, 'onPostNode']);
     }
     
     public function onPostNode(NodeContextInterface $context): NodeContextInterface
@@ -134,19 +136,19 @@ class SeoModule implements ModuleInterface
 ### Связанные разделы {#dataresolver-see-also}
 
 - [Модель данных: Data](./02-core--01-data-model.md#data)
-- [Справочник API: DataResolverInterface](./04-appendix--02-api-reference.md#dataresolverinterface)
+- [Справочник API: ContextDataResolverInterface](./04-appendix--02-api-reference.md#contextdataresolverinterface)
 - [Событийная модель](./03-events-modules--01-event-system.md)
-- [FAQ: Проблемы с DataResolver](./04-appendix--01-faq.md#проблемы-с-dataresolver)
+- [FAQ: Проблемы с ContextDataResolver](./04-appendix--01-faq.md#проблемы-с-dataresolver)
 
 ---
 
 ## InlineCollapser {#inline-collapser}
 
-**InlineCollapser** — это сервис, реализующий [`InlineCollapserInterface`](./04-appendix--02-api-reference.md#inlinecollapserinterface), который преобразует набор мелких строчных элементов в один крупный элемент с единым текстом и коллекцией сущностей форматирования.
+**InlineCollapser** — это сервис, реализующий [`InlineCollapserInterface`](./04-appendix--02-api-reference.md#inlinecollapserinterface), который преобразует набор мелких строчных элементов в один крупный элемент с единым текстом и коллекцией фрагментов форматирования ([`RichTextFragmentInterface`](./04-appendix--02-api-reference.md#richtextfragmentinterface)).
 
 ### Зачем нужно схлопывание? {#collapser-purpose}
 
-Без схлопывания фрагмент `<p>Это <b>жирный</b> текст</p>` превратится в дерево из 3 элементов. Со схлопыванием вы получаете **один элемент** с единым текстом и сущностями, описывающими форматирование, что делает навигацию и анализ значительно удобнее.
+Без схлопывания фрагмент `<p>Это <b>жирный</b> текст</p>` превратится в дерево из 3 элементов. Со схлопыванием вы получаете **один элемент** с единым текстом и фрагментами, описывающими форматирование, что делает навигацию и анализ значительно удобнее.
 
 ### API Reference {#collapser-api}
 
@@ -190,25 +192,25 @@ if ($context->allChildrenIsInline()) {
    Шаг 2: Склейка с отслеживанием позиций (start/end для каждого элемента)
          │
          ▼
-   Шаг 3: Создание сущностей форматирования (EntityInterface)
+   Шаг 3: Создание фрагментов форматирования (RichTextFragmentInterface)
          │
          ▼
    Шаг 4: Замена детей на один элемент с объединенным текстом
          │
          ▼
-   Результат: [один элемент с текстом и коллекцией entities]
+   Результат: [один элемент с текстом и коллекцией fragments]
 ```
 
-### Сущности форматирования {#collapser-entities}
+### Фрагменты форматирования {#collapser-fragments}
 
-В результате схлопывания создаются объекты, реализующие [`EntityInterface`](./04-appendix--02-api-reference.md#entityinterface). Каждая сущность описывает часть текста, оформленную определённым тегом.
+В результате схлопывания создаются объекты, реализующие [`RichTextFragmentInterface`](./04-appendix--02-api-reference.md#richtextfragmentinterface). Каждый фрагмент описывает часть текста, оформленную определённым тегом.
 
 ```php
-foreach ($element->getEntities() as $entity) {
-    echo $entity->getType();           // 'b', 'i', 'a'
-    echo $entity->getStart();          // позиция начала в тексте
-    echo $entity->getEnd();            // позиция окончания
-    echo $entity->getAttribute('href'); // значение атрибута для ссылок
+foreach ($element->getFragments() as $fragment) {
+    echo $fragment->getType();           // 'b', 'i', 'a'
+    echo $fragment->getStart();          // позиция начала в тексте
+    echo $fragment->getEnd();            // позиция окончания
+    echo $fragment->getAttribute('href'); // значение атрибута для ссылок
 }
 ```
 
@@ -227,8 +229,8 @@ $p = $document->getChildren()->get(0);
 
 echo $p->getLabel(); // "Это жирный и курсивный текст"
 
-foreach ($p->getEntities() as $entity) {
-    echo $entity->getType() . ': ' . $entity->getStart() . '-' . $entity->getEnd();
+foreach ($p->getFragments() as $fragment) {
+    echo $fragment->getType() . ': ' . $fragment->getStart() . '-' . $fragment->getEnd();
 }
 // Вывод:
 // b: 4-10
@@ -246,9 +248,9 @@ $document = $parser->parse();
 
 $p = $document->getChildren()->get(0);
 
-foreach ($p->getEntities() as $entity) {
-    $text = substr($p->getLabel(), $entity->getStart(), $entity->getEnd() - $entity->getStart());
-    echo $entity->getType() . ': ' . $text . ' -> ' . $entity->getAttribute('href');
+foreach ($p->getFragments() as $fragment) {
+    $text = substr($p->getLabel(), $fragment->getStart(), $fragment->getEnd() - $fragment->getStart());
+    echo $fragment->getType() . ': ' . $text . ' -> ' . $fragment->getAttribute('href');
 }
 // Вывод: a: Google -> https://google.com
 ```
@@ -264,15 +266,15 @@ $document = $parser->parse();
 
 $p = $document->getChildren()->get(0);
 
-foreach ($p->getEntities() as $entity) {
-    echo $entity->getType() . ': ' . $entity->getStart() . '-' . $entity->getEnd() . PHP_EOL;
+foreach ($p->getFragments() as $fragment) {
+    echo $fragment->getType() . ': ' . $fragment->getStart() . '-' . $fragment->getEnd() . PHP_EOL;
 }
 // Вывод:
 // b: 4-20
 // i: 11-20
 ```
 
-> **Важно:** При вложенных тегах создаются отдельные сущности для каждого уровня. Они могут перекрываться.
+> **Важно:** При вложенных тегах создаются отдельные фрагменты для каждого уровня. Они могут перекрываться.
 
 ### Настройка схлопывания {#collapser-configuration}
 
@@ -309,8 +311,8 @@ class NoCollapseModule implements ModuleInterface
 
 ### Связанные разделы {#collapser-see-also}
 
-- [Модель данных: Entities](./02-core--01-data-model.md#entities)
+- [Модель данных: Fragments](./02-core--01-data-model.md#fragments)
 - [Справочник API: InlineCollapserInterface](./04-appendix--02-api-reference.md#inlinecollapserinterface)
-- [Справочник API: EntityInterface](./04-appendix--02-api-reference.md#entityinterface)
+- [Справочник API: RichTextFragmentInterface](./04-appendix--02-api-reference.md#richtextfragmentinterface)
 - [Система контекстов](./02-core--02-context-system.md) — метод `allChildrenIsInline()`
 - [Событийная модель](./03-events-modules--01-event-system.md)

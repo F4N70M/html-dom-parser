@@ -10,7 +10,7 @@
 - [Парсинг и работа с данными](#парсинг-и-работа-с-данными)
 - [Модули](#проблемы-с-модулями)
 - [Обработка ошибок](#проблемы-с-обработкой-ошибок)
-- [DataResolver](#проблемы-с-dataresolver)
+- [ContextDataResolver](#проблемы-с-contextdataresolver)
 - [InlineCollapser](#проблемы-с-inlinecollapser)
 - [Производительность](#производительность)
 - [Прочее](#прочее)
@@ -21,7 +21,7 @@
 
 ### Вопрос: Какие требования к PHP для работы библиотеки? {#requirements}
 
-**Ответ:** Библиотека требует PHP версии 7.4 или 8.0+ и расширение `ext-dom` (обычно включено в стандартных сборках PHP). Подробнее в разделе [Установка](./01-general-information--02-installation.md).
+**Ответ:** Библиотека требует PHP версии 7.4+ и расширение `ext-dom` (обычно включено в стандартных сборках PHP). Подробнее в разделе [Установка](./01-general-information--02-installation.md).
 
 ### Вопрос: При установке получаю ошибку "ext-dom not found" {#ext-dom-missing}
 
@@ -48,7 +48,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 ### Вопрос: Как получить чистый текст без HTML-тегов? {#get-plain-text}
 
-**Ответ:** Используйте метод [`getLabel()`](./04-appendix--02-api-reference.md#elementinterface) — после схлопывания он содержит текст без тегов, но с сохранением информации о форматировании в entities.
+**Ответ:** Используйте метод [`getLabel()`](./04-appendix--02-api-reference.md#elementinterface) — после схлопывания он содержит текст без тегов, но с сохранением информации о форматировании в fragments.
 
 ```php
 $text = $element->getLabel(); // "Это жирный текст"
@@ -276,7 +276,7 @@ foreach ($errorHandler->getErrors() as $error) {
 
 ---
 
-## DataResolver {#проблемы-с-dataresolver}
+## ContextDataResolver {#проблемы-с-dataresolver}
 
 ### Вопрос: Почему `getData()` возвращает пустую строку, хотя атрибут есть? {#data-empty}
 
@@ -293,18 +293,20 @@ $data = $img->getData();  // ищет атрибут 'src'
 $data = $meta->getData(); // ищет атрибут 'content'
 ```
 
-Подробнее в разделе [DataResolver](./02-core--03-utilities.md#dataresolver).
+Подробнее в разделе [ContextDataResolver](./02-core--03-utilities.md#contextdataresolver).
 
 ### Вопрос: Можно ли изменить правило извлечения Data для определенного тега? {#custom-data-rule}
 
 **Ответ:** Да, через модуль и событие `post-node`:
 
 ```php
+use HtmlDomParser\Core\Event\EventConstant;
+
 class CustomDataModule implements ModuleInterface
 {
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
-        $dispatcher->subscribe('post-node', [$this, 'modifyData']);
+        $dispatcher->subscribe(EventConstant::POST_NODE, [$this, 'modifyData']);
     }
     
     public function modifyData(NodeContextInterface $context): NodeContextInterface
@@ -335,7 +337,9 @@ class CustomDataModule implements ModuleInterface
 **Ответ:** Используйте событие `pre-inline-collapse`:
 
 ```php
-$dispatcher->subscribe('pre-inline-collapse', function(NodeContextInterface $context) {
+use HtmlDomParser\Core\Event\EventConstant;
+
+$dispatcher->subscribe(EventConstant::PRE_INLINE_COLLAPSE, function(NodeContextInterface $context) {
     // Не схлопывать содержимое <pre> и <code>
     if (in_array($context->getName(), ['pre', 'code'])) {
         // Модифицируем контекст так, чтобы allChildrenIsInline вернул false
@@ -346,7 +350,7 @@ $dispatcher->subscribe('pre-inline-collapse', function(NodeContextInterface $con
 
 ### Вопрос: Почему после схлопывания у элемента нет детей? {#no-children-after-collapse}
 
-**Ответ:** Это нормальное поведение — все дочерние элементы были объединены в единый текст. Информация о форматировании теперь доступна через `getEntities()`. Подробнее в разделе [InlineCollapser](./02-core--03-utilities.md#inline-collapser).
+**Ответ:** Это нормальное поведение — все дочерние элементы были объединены в единый текст. Информация о форматировании теперь доступна через `getFragments()`. Подробнее в разделе [InlineCollapser](./02-core--03-utilities.md#inline-collapser).
 
 ### Вопрос: Как получить исходную структуру до схлопывания? {#original-structure}
 
@@ -357,36 +361,38 @@ $dispatcher->subscribe('pre-inline-collapse', function(NodeContextInterface $con
 
 ### Вопрос: Что происходит с вложенными строчными элементами? {#nested-inline}
 
-**Ответ:** Они схлопываются в плоский список entities. Например:
+**Ответ:** Они схлопываются в плоский список fragments. Например:
 
 ```html
 <b>жирный <i>и курсивный</i></b>
 ```
 
-Превращается в две сущности:
+Превращается в два фрагмента:
 ```php
-foreach ($element->getEntities() as $entity) {
-    echo $entity->getType() . ': ' . $entity->getStart() . '-' . $entity->getEnd();
+foreach ($element->getFragments() as $fragment) {
+    echo $fragment->getType() . ': ' . $fragment->getStart() . '-' . $fragment->getEnd();
 }
 // Вывод: b: 0-20, i: 7-20
 ```
 
-### Вопрос: Можно ли получить entities для всего документа целиком? {#all-entities}
+### Вопрос: Можно ли получить fragments для всего документа целиком? {#all-fragments}
 
-**Ответ:** Entities привязаны к конкретным элементам. Для получения всех entities нужно рекурсивно обойти дерево:
+**Ответ:** fragments привязаны к конкретным элементам. Для получения всех fragments нужно рекурсивно обойти дерево:
 
 ```php
-function collectEntities(ElementInterface $element): array
+use HtmlDomParser\Contract\ElementInterface;
+
+function collectFragments(ElementInterface $element): array
 {
-    $entities = $element->getEntities()->toArray();
+    $fragments = $element->getFragments()->toArray();
 
     if ($element->hasChildren()) {
         foreach ($element->getChildren() as $child) {
-            $entities = array_merge($entities, collectEntities($child));
+            $fragments = array_merge($fragments, collectFragments($child));
         }
     }
 
-    return $entities;
+    return $fragments;
 }
 ```
 
@@ -409,7 +415,9 @@ function collectEntities(ElementInterface $element): array
 **Ответ:** Используйте модули и события для раннего выхода или фильтрации:
 
 ```php
-$dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
+use HtmlDomParser\Core\Event\EventConstant;
+
+$dispatcher->subscribe(EventConstant::PRE_NODE, function(NodeContextInterface $context) {
     // Пропускаем ненужные узлы
     if (in_array($context->getName(), ['script', 'style'])) {
         // Можно пометить как SKIP через контекст
@@ -437,11 +445,13 @@ $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
 **Ответ:** Создайте модуль, который через событие `pre-node` будет задавать правильный контекст для нового тега:
 
 ```php
+use HtmlDomParser\Core\Event\EventConstant;
+
 class CustomTagModule implements ModuleInterface
 {
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
-        $dispatcher->subscribe('pre-node', [$this, 'handleCustomTag']);
+        $dispatcher->subscribe(EventConstant::PRE_NODE, [$this, 'handleCustomTag']);
     }
     
     public function handleCustomTag(NodeContextInterface $context): NodeContextInterface

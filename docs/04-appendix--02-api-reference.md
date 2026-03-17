@@ -6,26 +6,39 @@
 
 ## Содержание {#contents}
 
-- [ParserInterface](#parserinterface)
-- [NodeInterface](#nodeinterface)
-- [DocumentInterface](#documentinterface)
-- [ElementInterface](#elementinterface)
-- [EntityInterface](#entityinterface)
-- [ParserListInterface](#parserlistinterface)
-- [ElementListInterface](#elementlistinterface)
-- [EntityListInterface](#entitylistinterface)
-- [NodeContextInterface](#nodecontextinterface)
-- [ContextConverterInterface](#contextconverterinterface)
-- [TagContextMapInterface](#tagcontextmapinterface)
-- [ErrorHandlerInterface](#errorhandlerinterface)
-- [ErrorElementInterface](#errorelementinterface)
-- [EventDispatcherInterface](#eventdispatcherinterface)
-- [ModuleInterface](#moduleinterface)
-- [ModuleManagerInterface](#modulemanagerinterface)
-- [DataResolverInterface](#dataresolverinterface)
-- [InlineCollapserInterface](#inlinecollapserinterface)
-- [Трейты констант](#трейты-констант)
+- Core:
+  - [ParserInterface](#parserinterface)
+- Node:
+  - [NodeInterface](#nodeinterface)
+  - [DocumentInterface](#documentinterface)
+  - [ElementInterface](#elementinterface)
+  - [ErrorElementInterface](#errorelementinterface)
+  - [RichTextFragmentInterface](#richtextfragmentinterface)
+- Collection:
+  - [ParserListInterface](#parserlistinterface)
+  - [ElementListInterface](#elementlistinterface)
+  - [RichTextFragmentListInterface](#richtextfragmentlistinterface)
+- Context:
+  - [NodeContextInterface](#nodecontextinterface)
+  - [ContextConverterInterface](#contextconverterinterface)
+  - [TagContextMapInterface](#tagcontextmapinterface)
+  - [ContextDataResolverInterface](#contextdataresolverinterface)
+- ErrorHandler:
+  - [ErrorHandlerInterface](#errorhandlerinterface)
+- Event:
+  - [EventDispatcherInterface](#eventdispatcherinterface)
+- Module:
+  - [ModuleInterface](#moduleinterface)
+  - [ModuleManagerInterface](#modulemanagerinterface)
+- Utilite:
+  - [InlineCollapserInterface](#inlinecollapserinterface)
+- [Константы](#constants)
+  - [ContextTypeConstant](#contexttypeconstant)
+  - [ErrorConstant](#errorconstant)
+  - [EventConstant](#eventconstant)
 - [Исключения](#исключения)
+  - [HtmlDomParserException](#htmldomparserexception)
+  - [InvalidEventListenerException](#invalideventlistenerexception)
 
 ---
 
@@ -192,18 +205,18 @@ interface ElementInterface extends NodeInterface
     public function setLabel(string $label): void;
 
     /**
-     * Возвращает коллекцию сущностей форматирования.
+     * Возвращает коллекцию фрагментов форматирования.
      *
-     * @return EntityListInterface
+     * @return RichTextFragmentListInterface
      */
-    public function getEntities(): EntityListInterface;
+    public function getFragments(): RichTextFragmentListInterface;
 
     /**
-     * Добавляет сущность форматирования.
+     * Добавляет фрагмент форматирования.
      *
-     * @param EntityInterface $entity
+     * @param RichTextFragmentInterface $fragment
      */
-    public function addEntity(EntityInterface $entity): void;
+    public function addFragment(RichTextFragmentInterface $fragment): void;
 
     /**
      * Проверяет, является ли элемент строчным (inline).
@@ -229,7 +242,7 @@ interface ElementInterface extends NodeInterface
     /**
      * Возвращает тип контекста элемента.
      *
-     * @return int Одна из констант ContextTypeConstantsTrait
+     * @return int Одна из констант ContextTypeConstant
      */
     public function getContextType(): int;
 }
@@ -239,14 +252,14 @@ interface ElementInterface extends NodeInterface
 
 ---
 
-## EntityInterface {#entityinterface}
+## RichTextFragmentInterface {#richtextfragmentinterface}
 
-Интерфейс сущности форматирования, представляющей часть текста, оформленную определённым тегом. Сущности создаются в процессе схлопывания строчных элементов.
+Интерфейс фрагмента форматированного текста, представляющего часть текста, оформленную определённым тегом. Фрагменты создаются в процессе схлопывания строчных элементов.
 
 ```php
 namespace HtmlDomParser\Contract;
 
-interface EntityInterface
+interface RichTextFragmentInterface
 {
     /**
      * Возвращает тип форматирования (имя тега).
@@ -270,7 +283,7 @@ interface EntityInterface
     public function getEnd(): int;
 
     /**
-     * Возвращает все атрибуты, связанные с сущностью.
+     * Возвращает все атрибуты, связанные с фрагментом.
      *
      * @return array Ассоциативный массив вида ['атрибут' => 'значение']
      */
@@ -293,7 +306,7 @@ interface EntityInterface
     public function hasAttribute(string $name): bool;
 
     /**
-     * Преобразует сущность в массив для обратной совместимости или сериализации.
+     * Преобразует фрагмент в массив для обратной совместимости или сериализации.
      *
      * @return array Структура: ['type' => string, 'start' => int, 'end' => int, 'attributes' => array]
      */
@@ -301,7 +314,7 @@ interface EntityInterface
 }
 ```
 
-**Подробнее:** [Модель данных: Entities](./02-core--01-data-model.md#entities)
+**Подробнее:** [Модель данных: Fragments](./02-core--01-data-model.md#fragments)
 
 ---
 
@@ -331,7 +344,7 @@ interface ParserListInterface extends \IteratorAggregate, \Countable
     /**
      * Преобразует коллекцию в массив.
      *
-     * @return array Массив хранящихся объектов (ElementInterface[], EntityInterface[] и т.д.)
+     * @return array Массив хранящихся объектов (ElementInterface[], RichTextFragmentInterface[] и т.д.)
      */
     public function toArray(): array;
 
@@ -390,37 +403,37 @@ interface ElementListInterface extends ParserListInterface
 
 ---
 
-## EntityListInterface {#entitylistinterface}
+## RichTextFragmentListInterface {#richtextfragmentlistinterface}
 
-Коллекция сущностей форматирования. Наследует `ParserListInterface`.
+Коллекция фрагментов форматирования. Наследует `ParserListInterface`.
 
 ```php
 namespace HtmlDomParser\Contract;
 
-interface EntityListInterface extends ParserListInterface
+interface RichTextFragmentListInterface extends ParserListInterface
 {
     /**
-     * Добавляет сущность в конец списка.
+     * Добавляет фрагмент в конец списка.
      *
-     * @param EntityInterface $entity
+     * @param RichTextFragmentInterface $fragment
      */
-    public function push(EntityInterface $entity): void;
+    public function push(RichTextFragmentInterface $fragment): void;
 
     /**
-     * Возвращает сущность по индексу.
+     * Возвращает фрагмент по индексу.
      *
      * @param int $index
-     * @return EntityInterface|null
+     * @return RichTextFragmentInterface|null
      */
-    public function get(int $index): ?EntityInterface;
+    public function get(int $index): ?RichTextFragmentInterface;
 
     /**
      * Возвращает новую коллекцию, отфильтрованную по callback.
      *
-     * @param callable $callback function(EntityInterface $entity): bool
-     * @return EntityListInterface
+     * @param callable $callback function(RichTextFragmentInterface $fragment): bool
+     * @return RichTextFragmentListInterface
      */
-    public function filter(callable $callback): EntityListInterface;
+    public function filter(callable $callback): RichTextFragmentListInterface;
 }
 ```
 
@@ -579,8 +592,6 @@ namespace HtmlDomParser\Contract;
 
 interface ContextConverterInterface
 {
-    use ContextTypeConstantsTrait;
-
     /**
      * Создаёт контекст для DOM-узла на основе правил тегов и родительского контекста.
      *
@@ -595,7 +606,7 @@ interface ContextConverterInterface
      * В этот момент:
      * - Атрибуты копируются из контекста в элемент
      * - Label копируется из контекста
-     * - Вызывается DataResolver для извлечения Data
+     * - Вызывается ContextDataResolver для извлечения Data
      *
      * @param NodeContextInterface $nodeContext
      * @return ElementInterface
@@ -617,8 +628,6 @@ namespace HtmlDomParser\Contract;
 
 interface TagContextMapInterface
 {
-    use ContextTypeConstantsTrait;
-
     /**
      * Возвращает конфигурацию для указанного тега.
      *
@@ -648,6 +657,29 @@ interface TagContextMapInterface
 
 ---
 
+## ContextDataResolverInterface {#contextdataresolverinterface}
+
+Извлечение основного содержимого (Data) из DOM-узла.
+
+```php
+namespace HtmlDomParser\Contract;
+
+interface ContextDataResolverInterface
+{
+    /**
+     * Извлекает основное содержимое (data) из DOM-узла.
+     *
+     * @param \DOMNode $node Оригинальный DOM-узел
+     * @return mixed Извлеченные данные
+     */
+    public function resolve(\DOMNode $node): mixed;
+}
+```
+
+**Подробнее:** [ContextDataResolver](./02-core--03-utilities.md#contextdataresolver)
+
+---
+
 ## ErrorHandlerInterface {#errorhandlerinterface}
 
 Обработчик ошибок парсинга. Собирает все ошибки в процессе парсинга и управляет поведением (выброс исключений).
@@ -657,8 +689,6 @@ namespace HtmlDomParser\Contract;
 
 interface ErrorHandlerInterface
 {
-    use ErrorConstantsTrait;
-
     /**
      * Добавляет ошибку в обработчик.
      *
@@ -677,7 +707,7 @@ interface ErrorHandlerInterface
     /**
      * Возвращает ошибки указанного уровня.
      *
-     * @param string $severity Одна из констант SEVERITY_*
+     * @param string $severity Одна из констант ErrorConstant::SEVERITY_*
      * @return ErrorElementInterface[]
      */
     public function getErrorsBySeverity(string $severity): array;
@@ -735,12 +765,10 @@ namespace HtmlDomParser\Contract;
 
 interface ErrorElementInterface extends ElementInterface
 {
-    use ErrorConstantsTrait;
-
     /**
      * Возвращает уровень серьезности ошибки.
      *
-     * @return string Одна из констант SEVERITY_*
+     * @return string Одна из констант ErrorConstant::SEVERITY_*
      */
     public function getSeverity(): string;
 
@@ -790,7 +818,7 @@ interface EventDispatcherInterface
     /**
      * Регистрирует обработчик для события.
      *
-     * @param string $event Название события (например, 'pre-node')
+     * @param string $event Название события (одна из констант EventConstant)
      * @param callable $handler Функция-обработчик: function(NodeContextInterface $context): NodeContextInterface
      * @param int $priority Приоритет (чем выше, тем раньше вызывается). По умолчанию 0
      * @throws InvalidEventListenerException При несоответствии сигнатуры
@@ -930,32 +958,9 @@ interface ModuleManagerInterface
 
 ---
 
-## DataResolverInterface {#dataresolverinterface}
-
-Извлечение основного содержимого (Data) из DOM-узла.
-
-```php
-namespace HtmlDomParser\Contract;
-
-interface DataResolverInterface
-{
-    /**
-     * Извлекает основное содержимое (data) из DOM-узла.
-     *
-     * @param \DOMNode $node Оригинальный DOM-узел
-     * @return mixed Извлеченные данные
-     */
-    public function resolve(\DOMNode $node): mixed;
-}
-```
-
-**Подробнее:** [DataResolver](./02-core--03-utilities.md#dataresolver)
-
----
-
 ## InlineCollapserInterface {#inlinecollapserinterface}
 
-Схлопывание строчных элементов в единый текст с коллекцией сущностей форматирования.
+Схлопывание строчных элементов в единый текст с коллекцией фрагментов форматирования.
 
 ```php
 namespace HtmlDomParser\Contract;
@@ -977,30 +982,52 @@ interface InlineCollapserInterface
 
 ---
 
-## Трейты констант {#трейты-констант}
+## Константы {#constants}
 
-### ContextTypeConstantsTrait {#contexttypeconstantstrait}
+### ContextTypeConstant {#contexttypeconstant}
+
+Класс с константами типов контекста. Находится в пространстве имен `HtmlDomParser\Core\Context`.
 
 ```php
-trait ContextTypeConstantsTrait
+class ContextTypeConstant
 {
-    const INLINE    = 1; // Фразовый элемент (строчный)
-    const PHRASE    = 2; // Фразовый контейнер
-    const CONTAINER = 3; // Потоковый контейнер (блочный)
-    const VOID      = 0; // Пустой элемент (не может иметь детей)
-    const SKIP      = -1; // Пропустить элемент (не включать в результат)
-    const ROOT      = 4; // Корень
+    public const SKIP      = -1;  // Пропустить элемент (не включать в результат)
+    public const VOID      =  0;  // Пустой элемент (не может иметь детей)
+    public const INLINE    =  1;  // Фразовый элемент (строчный)
+    public const PHRASE    =  2;  // Фразовый контейнер
+    public const CONTAINER =  3;  // Потоковый контейнер (блочный)
+    public const ROOT      =  4;  // Корень
 }
 ```
 
-### ErrorConstantsTrait {#errorconstantstrait}
+### ErrorConstant {#errorconstant}
+
+Класс с константами уровней ошибок. Находится в пространстве имен `HtmlDomParser\Core\Error`.
 
 ```php
-trait ErrorConstantsTrait
+namespace HtmlDomParser\Core\Error;
+
+class ErrorConstant
 {
-    const SEVERITY_NOTICE  = 'notice';  // Уведомление, не влияет на результат
-    const SEVERITY_WARNING = 'warning'; // Предупреждение, возможны незначительные проблемы
-    const SEVERITY_ERROR   = 'error';   // Фатальная ошибка, результат может быть некорректен
+    public const SEVERITY_NOTICE  = 'notice';  // Уведомление, не влияет на результат
+    public const SEVERITY_WARNING = 'warning'; // Предупреждение, возможны незначительные проблемы
+    public const SEVERITY_ERROR   = 'error';   // Фатальная ошибка, результат может быть некорректен
+}
+```
+
+### EventConstant {#eventconstant}
+
+Класс с константами событий. Находится в пространстве имен `HtmlDomParser\Core\Event`.
+
+```php
+namespace HtmlDomParser\Core\Event;
+
+class EventConstant
+{
+    public const PRE_NODE               = 'pre-node';
+    public const POST_NODE              = 'post-node';
+    public const PRE_INLINE_COLLAPSE    = 'pre-inline-collapse';
+    public const POST_INLINE_COLLAPSE   = 'post-inline-collapse';
 }
 ```
 

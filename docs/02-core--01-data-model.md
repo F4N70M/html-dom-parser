@@ -1,8 +1,8 @@
 [← К оглавлению](../README.md#-документация)
 
-# Модель данных элемента: Data, Label, Entities {#data-model}
+# Модель данных элемента: Data, Label, Fragments {#data-model}
 
-В этом разделе подробно рассматриваются три ключевых свойства элементов [`ElementInterface`](./04-appendix--02-api-reference.md#elementinterface): основное содержимое (Data), текстовая метка (Label) и карта форматирования (Entities).
+В этом разделе подробно рассматриваются три ключевых свойства элементов [`ElementInterface`](./04-appendix--02-api-reference.md#elementinterface): основное содержимое (Data), текстовая метка (Label) и коллекция фрагментов форматированного текста (Fragments).
 
 ## Обзор модели {#overview}
 
@@ -10,16 +10,16 @@
 
 ```
 Элемент (ElementInterface)
-├── Data     — основное смысловое содержимое (лениво извлекается DataResolver)
-├── Label    — текстовая метка (объединенный текст после схлопывания)
-└── Entities — коллекция сущностей форматирования (если было схлопывание)
+├── Data      — основное смысловое содержимое (лениво извлекается ContextDataResolver)
+├── Label     — текстовая метка (объединенный текст после схлопывания)
+└── Fragments — коллекция фрагментов форматирования (если было схлопывание)
 ```
 
 ## Data (основное содержимое) {#data}
 
 **Data** — это смысловое содержимое элемента. Процесс его формирования двухэтапный:
 
-1. **В контексте:** При первом вызове `$context->getData()` значение извлекается из оригинального DOM-узла с помощью [`DataResolverInterface`](./04-appendix--02-api-reference.md#dataresolverinterface) и кэшируется в контексте. Обработчики событий могут модифицировать это значение через `$context->setData()`.
+1. **В контексте:** При первом вызове `$context->getData()` значение извлекается из оригинального DOM-узла с помощью [`ContextDataResolverInterface`](./04-appendix--02-api-reference.md#contextdataresolverinterface) и кэшируется в контексте. Обработчики событий могут модифицировать это значение через `$context->setData()`.
 2. **При создании элемента:** Метод [`ContextConverterInterface::contextToElement()`](./04-appendix--02-api-reference.md#contextconverterinterface) копирует текущее значение Data из контекста в создаваемый элемент. Элемент становится самостоятельным объектом и теряет связь с контекстом.
 
 Таким образом, в готовом элементе Data **уже присутствует** и доступна мгновенно. Последующие вызовы `getData()` возвращают сохранённое значение.
@@ -33,7 +33,7 @@
 | `<script>` | Текстовое содержимое | `'alert("Hello");'` |
 | `<p>`, `<div>` | Текстовое содержимое | `'Текст параграфа'` |
 
-Подробные правила извлечения Data описаны в разделе [DataResolver](./02-core--03-utilities.md#dataresolver).
+Подробные правила извлечения Data описаны в разделе [ContextDataResolver](./02-core--03-utilities.md#contextdataresolver).
 
 > **Примечание:** Модули могут изменять Data через контекст до момента создания элемента. Подробнее в разделе [Событийная модель](./03-events-modules--01-event-system.md).
 
@@ -51,11 +51,11 @@
 $element->getLabel(); // "Это жирный и курсивный текст"
 ```
 
-## Entities (сущности форматирования) {#entities}
+## Fragments (фрагменты форматирования) {#fragments}
 
-**Entities** появляются только после схлопывания строчных элементов и содержат информацию о форматировании текста. Если элемент не проходил схлопывание, `getEntities()` вернет пустую коллекцию ([`EntityListInterface`](./04-appendix--02-api-reference.md#entitylistinterface)).
+**Fragments** появляются только после схлопывания строчных элементов и содержат информацию о форматировании текста. Если элемент не проходил схлопывание, `getFragments()` вернет пустую коллекцию ([`RichTextFragmentListInterface`](./04-appendix--02-api-reference.md#richtextfragmentlistinterface)).
 
-Каждая сущность реализует интерфейс [`EntityInterface`](./04-appendix--02-api-reference.md#entityinterface) и предоставляет следующие методы:
+Каждый фрагмент реализует интерфейс [`RichTextFragmentInterface`](./04-appendix--02-api-reference.md#richtextfragmentinterface) и предоставляет следующие методы:
 
 - `getType(): string` — тип форматирования (`b`, `i`, `a`, `strong` и т.д.)
 - `getStart(): int` — позиция начала в тексте (индекс символа)
@@ -65,15 +65,15 @@ $element->getLabel(); // "Это жирный и курсивный текст"
 - `hasAttribute(string $name): bool` — проверка наличия атрибута
 - `toArray(): array` — преобразование в массив для обратной совместимости
 
-### Важные особенности Entities
+### Важные особенности Fragments
 
-1. **Появляются только после схлопывания** — если у элемента есть дети (`hasChildren() === true`), значит схлопывание не применялось и `getEntities()` вернет пустую коллекцию.
-2. **Плоский список** — сущности не вложены, даже если в HTML были вложенные теги (например, `<b><i>текст</i></b>` создаст две отдельные сущности).
-3. **Очистка children** — после успешного схлопывания у элемента не остаётся дочерних элементов. Метод `hasChildren()` возвращает `false`, а `getChildren()` — пустую коллекцию. Вся структура форматирования сохраняется в `entities`.
+1. **Появляются только после схлопывания** — если у элемента есть дети (`hasChildren() === true`), значит схлопывание не применялось и `getFragments()` вернет пустую коллекцию.
+2. **Плоский список** — фрагменты не вложены, даже если в HTML были вложенные теги (например, `<b><i>текст</i></b>` создаст два отдельных фрагмента).
+3. **Очистка children** — после успешного схлопывания у элемента не остаётся дочерних элементов. Метод `hasChildren()` возвращает `false`, а `getChildren()` — пустую коллекцию. Вся структура форматирования сохраняется в `fragments`.
 
 ## Примеры кода {#examples}
 
-### Пример 1: Базовая работа с Data, Label и Entities
+### Пример 1: Базовая работа с Data, Label и Fragments
 
 ```php
 <?php
@@ -98,11 +98,11 @@ if ($element->hasChildren()) {
     echo $link->getData(); // "https://example.com"
 }
 
-// Entities — коллекция сущностей форматирования
-$entities = $element->getEntities(); // пусто, так как div не схлопывался
+// Fragments — коллекция фрагментов форматирования
+$fragments = $element->getFragments(); // пусто, так как div не схлопывался
 ```
 
-### Пример 2: Работа с Entities после схлопывания
+### Пример 2: Работа с Fragments после схлопывания
 
 ```php
 <?php
@@ -115,11 +115,11 @@ $p = $document->getChildren()->get(0);
 
 echo $p->getLabel(); // "Это жирный, курсивный и подчеркнутый текст"
 
-$entities = $p->getEntities(); // EntityListInterface
+$fragments = $p->getFragments(); // RichTextFragmentListInterface
 
-foreach ($entities as $entity) {
-    $text = substr($p->getLabel(), $entity->getStart(), $entity->getEnd() - $entity->getStart());
-    echo $entity->getType() . ': "' . $text . '"' . PHP_EOL;
+foreach ($fragments as $fragment) {
+    $text = substr($p->getLabel(), $fragment->getStart(), $fragment->getEnd() - $fragment->getStart());
+    echo $fragment->getType() . ': "' . $text . '"' . PHP_EOL;
 }
 // Вывод:
 // b: "жирный"
@@ -169,20 +169,20 @@ $div = $document->getChildren()->get(0);
 // У div есть дети
 var_dump($div->hasChildren()); // true
 
-// Но entities отсутствуют (схлопывание не применялось к div)
-var_dump($div->getEntities()->count()); // 0
+// Но fragments отсутствуют (схлопывание не применялось к div)
+var_dump($div->getFragments()->count()); // 0
 
-// Однако у p могут быть entities после схлопывания
+// Однако у p могут быть fragments после схлопывания
 $p = $div->getChildren()->get(1);
 var_dump($p->hasChildren()); // false (после схлопывания детей нет)
-var_dump($p->getEntities()->count()); // 1 (есть сущность для <b>)
+var_dump($p->getFragments()->count()); // 1 (есть фрагмент для <b>)
 ```
 
 ## Связанные разделы {#see-also}
 
 - [Справочник API: ElementInterface](./04-appendix--02-api-reference.md#elementinterface)
-- [Справочник API: EntityInterface](./04-appendix--02-api-reference.md#entityinterface)
-- [Справочник API: EntityListInterface](./04-appendix--02-api-reference.md#entitylistinterface)
-- [DataResolver](./02-core--03-utilities.md#dataresolver) — извлечение Data
+- [Справочник API: RichTextFragmentInterface](./04-appendix--02-api-reference.md#richtextfragmentinterface)
+- [Справочник API: RichTextFragmentListInterface](./04-appendix--02-api-reference.md#richtextfragmentlistinterface)
+- [ContextDataResolver](./02-core--03-utilities.md#contextdataresolver) — извлечение Data
 - [InlineCollapser](./02-core--03-utilities.md#inline-collapser) — механизм схлопывания
 - [Система контекстов](./02-core--02-context-system.md) — как формируются элементы

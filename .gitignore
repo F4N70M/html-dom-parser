@@ -10,3 +10,8 @@
 # OS
 .DS_Store
 Thumbs.db
+
+
+# Test
+/examples/00-pre-document.php
+/dev-docs/

@@ -25,7 +25,7 @@
 
 ```php
 // Пример: в обработчике pre-node перезаписываем атрибут
-$dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
+$dispatcher->subscribe(EventConstant::PRE_NODE, function(NodeContextInterface $context) {
     // Первое обращение — значение извлекается из DOMNode и кэшируется
     $oldClass = $context->getAttribute('class');
     // Перезаписываем — теперь везде будет использоваться новое значение
@@ -43,22 +43,22 @@ $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
 Начало обработки узла
          │
          ▼
-    pre-node ◄──────────────────┐
+    PRE_NODE ◄──────────────────┐
          │                      │
          ▼                      │
 Обработка детей (рекурсивно)    │
          │                      │
          ▼                      │
-   pre-inline-collapse ◄────────┤
+   PRE_INLINE_COLLAPSE ◄────────┤
          │                      │ Подписка
          ▼                      │ модулей
    Схлопывание (если нужно)     │
          │                      │
          ▼                      │
-   post-inline-collapse ◄───────┤
+   POST_INLINE_COLLAPSE ◄───────┤
          │                      │
          ▼                      │
-   post-node ◄──────────────────┘
+   POST_NODE ◄──────────────────┘
          │
          ▼
 Конец обработки узла
@@ -68,12 +68,14 @@ $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
 
 ## Список событий {#event-list}
 
-| Событие | Момент вызова | Типичное использование |
-| :--- | :--- | :--- |
-| `pre-node` | Сразу после создания контекста, до обработки детей | Модификация атрибутов, изменение типа контекста, добавление метаданных |
-| `post-node` | После обработки всех детей и схлопывания, перед преобразованием в элемент | Финальная модификация готового элемента, пост-обработка |
-| `pre-inline-collapse` | Перед запуском механизма схлопывания (если `allChildrenIsInline() === true`) | Изменение логики схлопывания, отключение схлопывания для определенных случаев |
-| `post-inline-collapse` | После схлопывания, но до `post-node` | Модификация полученных entities, корректировка объединенного текста |
+Библиотека использует класс `EventConstant` для определения констант событий. Полный список доступен в [Справочнике API](./04-appendix--02-api-reference.md#eventconstant).
+
+| Событие | Константа | Момент вызова | Типичное использование |
+| :--- | :--- | :--- | :--- |
+| `pre-node` | `PRE_NODE` | Сразу после создания контекста, до обработки детей | Модификация атрибутов, изменение типа контекста, добавление метаданных |
+| `post-node` | `POST_NODE` | После обработки всех детей и схлопывания, перед преобразованием в элемент | Финальная модификация готового элемента, пост-обработка |
+| `pre-inline-collapse` | `PRE_INLINE_COLLAPSE` | Перед запуском механизма схлопывания (если `allChildrenIsInline() === true`) | Изменение логики схлопывания, отключение схлопывания для определенных случаев |
+| `post-inline-collapse` | `POST_INLINE_COLLAPSE` | После схлопывания, но до `post-node` | Модификация полученных фрагментов, корректировка объединенного текста |
 
 ## API Reference {#api-reference}
 
@@ -87,7 +89,7 @@ interface EventDispatcherInterface
     /**
      * Регистрирует обработчик для события.
      *
-     * @param string $event Название события (например, 'pre-node')
+     * @param string $event Название события (одна из констант EventConstant)
      * @param callable $handler Функция-обработчик: function(NodeContextInterface $context): NodeContextInterface
      * @param int $priority Приоритет (чем выше, тем раньше вызывается). По умолчанию 0
      * @throws InvalidEventListenerException При несоответствии сигнатуры
@@ -144,13 +146,13 @@ function(NodeContextInterface $context): NodeContextInterface
 
 ```php
 // Этот обработчик выполнится первым (приоритет 100)
-$dispatcher->subscribe('pre-node', $handler1, 100);
+$dispatcher->subscribe(EventConstant::PRE_NODE, $handler1, 100);
 
 // Этот — вторым (приоритет 50)
-$dispatcher->subscribe('pre-node', $handler2, 50);
+$dispatcher->subscribe(EventConstant::PRE_NODE, $handler2, 50);
 
 // Этот — последним (приоритет 0 по умолчанию)
-$dispatcher->subscribe('pre-node', $handler3);
+$dispatcher->subscribe(EventConstant::PRE_NODE, $handler3);
 ```
 
 Если несколько обработчиков имеют одинаковый приоритет, порядок вызова не гарантируется.
@@ -176,12 +178,13 @@ public function initialize(EventDispatcherInterface $dispatcher): void
 
 use HtmlDomParser\Parser;
 use HtmlDomParser\Contract\NodeContextInterface;
+use HtmlDomParser\Core\Event\EventConstant;
 
 $parser = new Parser($html);
 // Получение диспетчера (зависит от реализации)
 $dispatcher = $parser->getModuleManager()->getEventDispatcher();
 
-$dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
+$dispatcher->subscribe(EventConstant::PRE_NODE, function(NodeContextInterface $context) {
     if ($context->getName() === 'div') {
         // Добавляем атрибут с временной меткой
         $context->setAttribute('data-parsed', date('Y-m-d H:i:s'));
@@ -197,13 +200,16 @@ $document = $parser->parse();
 ```php
 <?php
 
-$dispatcher->subscribe('pre-inline-collapse', function(NodeContextInterface $context) {
+use HtmlDomParser\Core\Event\EventConstant;
+
+$dispatcher->subscribe(EventConstant::PRE_INLINE_COLLAPSE, function(NodeContextInterface $context) {
     $tag = $context->getName();
     
     // Не схлопывать содержимое внутри тегов <pre> и <code>
     if (in_array($tag, ['pre', 'code'])) {
         // Модифицируем контекст, чтобы allChildrenIsInline() вернул false
         // Например, можно изменить тип контекста или установить флаг
+        // $context->setSomeFlag(false);
     }
     
     return $context;
@@ -217,20 +223,22 @@ $dispatcher->subscribe('pre-inline-collapse', function(NodeContextInterface $con
 ```php
 <?php
 
+use HtmlDomParser\Core\Event\EventConstant;
+
 $logger = new Logger();
 
 // Подписываемся на несколько событий для отслеживания прогресса
-$dispatcher->subscribe('pre-node', function(NodeContextInterface $context) use ($logger) {
+$dispatcher->subscribe(EventConstant::PRE_NODE, function(NodeContextInterface $context) use ($logger) {
     $logger->debug('Начало обработки узла: ' . $context->getName());
     return $context;
 });
 
-$dispatcher->subscribe('post-node', function(NodeContextInterface $context) use ($logger) {
+$dispatcher->subscribe(EventConstant::POST_NODE, function(NodeContextInterface $context) use ($logger) {
     $logger->debug('Завершение обработки узла: ' . $context->getName());
     return $context;
 });
 
-$dispatcher->subscribe('pre-inline-collapse', function(NodeContextInterface $context) use ($logger) {
+$dispatcher->subscribe(EventConstant::PRE_INLINE_COLLAPSE, function(NodeContextInterface $context) use ($logger) {
     $logger->info('Схлопывание для узла: ' . $context->getName());
     return $context;
 });
@@ -241,7 +249,9 @@ $dispatcher->subscribe('pre-inline-collapse', function(NodeContextInterface $con
 ```php
 <?php
 
-$dispatcher->subscribe('post-node', function(NodeContextInterface $context) {
+use HtmlDomParser\Core\Event\EventConstant;
+
+$dispatcher->subscribe(EventConstant::POST_NODE, function(NodeContextInterface $context) {
     static $validationErrors = [];
     
     if ($context->getName() === 'ul') {
@@ -264,6 +274,11 @@ $dispatcher->subscribe('post-node', function(NodeContextInterface $context) {
 ```php
 <?php
 
+use HtmlDomParser\Contract\ModuleInterface;
+use HtmlDomParser\Contract\EventDispatcherInterface;
+use HtmlDomParser\Contract\NodeContextInterface;
+use HtmlDomParser\Core\Event\EventConstant;
+
 class NestingCounterModule implements ModuleInterface
 {
     private array $depth = [];
@@ -285,8 +300,8 @@ class NestingCounterModule implements ModuleInterface
     
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
-        $dispatcher->subscribe('pre-node', [$this, 'onPreNode']);
-        $dispatcher->subscribe('post-node', [$this, 'onPostNode']);
+        $dispatcher->subscribe(EventConstant::PRE_NODE, [$this, 'onPreNode']);
+        $dispatcher->subscribe(EventConstant::POST_NODE, [$this, 'onPostNode']);
     }
     
     public function onPreNode(NodeContextInterface $context): NodeContextInterface
@@ -314,7 +329,9 @@ class NestingCounterModule implements ModuleInterface
 ```php
 <?php
 
-$dispatcher->subscribe('post-node', function(NodeContextInterface $context) {
+use HtmlDomParser\Core\Event\EventConstant;
+
+$dispatcher->subscribe(EventConstant::POST_NODE, function(NodeContextInterface $context) {
     // Модифицируем Data для всех ссылок
     if ($context->getName() === 'a') {
         $originalUrl = $context->getData();
@@ -333,6 +350,8 @@ echo $link->getData(); // https://proxy.com/?url=https://original.com
 Модули могут генерировать собственные события:
 
 ```php
+use HtmlDomParser\Core\Event\EventConstant;
+
 class CustomModule implements ModuleInterface
 {
     private EventDispatcherInterface $dispatcher;
@@ -340,7 +359,7 @@ class CustomModule implements ModuleInterface
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
         $this->dispatcher = $dispatcher;
-        $dispatcher->subscribe('post-node', [$this, 'onPostNode']);
+        $dispatcher->subscribe(EventConstant::POST_NODE, [$this, 'onPostNode']);
     }
     
     public function onPostNode(NodeContextInterface $context): NodeContextInterface
@@ -366,6 +385,7 @@ class CustomModule implements ModuleInterface
 
 - [Справочник API: EventDispatcherInterface](./04-appendix--02-api-reference.md#eventdispatcherinterface)
 - [Справочник API: NodeContextInterface](./04-appendix--02-api-reference.md#nodecontextinterface)
+- [Справочник API: EventConstant](./04-appendix--02-api-reference.md#eventconstant)
 - [Система модулей](./03-events-modules--02-modules.md) — модули как основной способ подписки на события
 - [Система контекстов](./02-core--02-context-system.md) — что можно модифицировать в контексте
 - [InlineCollapser](./02-core--03-utilities.md#inline-collapser) — события pre-inline-collapse/post-inline-collapse

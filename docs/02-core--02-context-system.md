@@ -9,7 +9,7 @@
 **Контекст узла** ([`NodeContextInterface`](./04-appendix--02-api-reference.md#nodecontextinterface)) — это временный объект, создаваемый для каждого DOM-узла в процессе парсинга. Он хранит:
 
 - Ссылку на оригинальный DOM-узел
-- Правила обработки тега из карты тегов
+- Правила обработки тега из карты тегов ([`TagContextMap`](./04-appendix--02-api-reference.md#tagcontextmapinterface))
 - Тип контекста родительского узла
 - Уже обработанные дочерние элементы
 - Промежуточные результаты вычислений
@@ -64,7 +64,7 @@ DOMNode
 
 ## Типы контекста {#context-types}
 
-Библиотека использует трейт `ContextTypeConstantsTrait` для определения типов контекста. Полный список констант доступен в [Справочнике API](./04-appendix--02-api-reference.md#трейты-констант).
+Библиотека использует класс `ContextTypeConstant` для определения типов контекста. Полный список констант доступен в [Справочнике API](./04-appendix--02-api-reference.md#contexttypeconstant).
 
 | Тип | Константа | Описание | Примеры тегов |
 | :--- | :---: | :--- | :--- |
@@ -100,8 +100,8 @@ DOMNode
 Пример конфигурации для тега `<p>`:
 ```php
 [
-    'thisContextType' => ContextTypeConstantsTrait::PHRASE,      // сам тег - фразовый
-    'childrenContextType' => ContextTypeConstantsTrait::INLINE,  // дети будут строчными
+    'thisContextType' => ContextTypeConstant::PHRASE,      // сам тег - фразовый
+    'childrenContextType' => ContextTypeConstant::INLINE,  // дети будут строчными
     'allowedTags' => ['a', 'b', 'i', 'span', '#text'],           // разрешенные потомки
     'isInline' => false,
     'isRawText' => false,
@@ -115,13 +115,13 @@ DOMNode
 
 **Основные методы:**
 - `nodeToContext(DOMNode $node, int $parentContextType): NodeContextInterface` — создаёт контекст для DOM-узла
-- `contextToElement(NodeContextInterface $nodeContext): ElementInterface` — создаёт элемент из контекста (на этом этапе вызывается [`DataResolverInterface`](./04-appendix--02-api-reference.md#dataresolverinterface))
+- `contextToElement(NodeContextInterface $nodeContext): ElementInterface` — создаёт элемент из контекста (на этом этапе вызывается [`ContextDataResolverInterface`](./04-appendix--02-api-reference.md#contextdataresolverinterface))
 
 ```php
 // Пример преобразования (внутренняя логика библиотеки)
 $context = $converter->nodeToContext($domNode, $parentContextType);
 // ... обработка детей, события ...
-$element = $converter->contextToElement($context); // здесь вызывается DataResolver
+$element = $converter->contextToElement($context); // здесь вызывается ContextDataResolver
 ```
 
 ## Принципы работы {#how-it-works}
@@ -189,9 +189,10 @@ if (!in_array($childNode->nodeName, $allowedTags)) {
 <?php
 
 use HtmlDomParser\Contract\NodeContextInterface;
+use HtmlDomParser\Core\Event\EventConstant;
 
 // Подписка на событие pre-node для изменения атрибутов
-$dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
+$dispatcher->subscribe(EventConstant::PRE_NODE, function(NodeContextInterface $context) {
     if ($context->getName() === 'div') {
         // Добавляем класс ко всем div-элементам
         $class = $context->getNode()->getAttribute('class') ?? '';
@@ -208,7 +209,7 @@ $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
 - [Справочник API: NodeContextInterface](./04-appendix--02-api-reference.md#nodecontextinterface)
 - [Справочник API: ContextConverterInterface](./04-appendix--02-api-reference.md#contextconverterinterface)
 - [Справочник API: TagContextMapInterface](./04-appendix--02-api-reference.md#tagcontextmapinterface)
-- [Справочник API: ContextTypeConstantsTrait](./04-appendix--02-api-reference.md#трейты-констант)
+- [Справочник API: ContextTypeConstant](./04-appendix--02-api-reference.md#contexttypeconstant)
 - [Событийная модель](./03-events-modules--01-event-system.md) — изменение контекста через события
 - [InlineCollapser](./02-core--03-utilities.md#inline-collapser) — использование `allChildrenIsInline()`
 - [Обработка ошибок](./02-core--04-error-handling.md) — узлы-ошибки при нарушении правил

@@ -97,6 +97,7 @@ namespace Vendor\Package;
 use HtmlDomParser\Contract\ModuleInterface;
 use HtmlDomParser\Contract\EventDispatcherInterface;
 use HtmlDomParser\Contract\NodeContextInterface;
+use HtmlDomParser\Core\Event\EventConstant;
 
 class SeoModule implements ModuleInterface
 {
@@ -126,7 +127,7 @@ class SeoModule implements ModuleInterface
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
         // Подписка на события
-        $dispatcher->subscribe('post-node', [$this, 'onPostNode']);
+        $dispatcher->subscribe(EventConstant::POST_NODE, [$this, 'onPostNode']);
     }
     
     public function onPostNode(NodeContextInterface $context): NodeContextInterface
@@ -159,12 +160,14 @@ public function getDependencies(): array
 В методе `initialize()` подпишитесь на необходимые события с учетом приоритетов:
 
 ```php
+use HtmlDomParser\Core\Event\EventConstant;
+
 public function initialize(EventDispatcherInterface $dispatcher): void
 {
     // Подписка с разными приоритетами
-    $dispatcher->subscribe('pre-node', [$this, 'onPreNode'], 100);  // высокий приоритет
-    $dispatcher->subscribe('post-node', [$this, 'onPostNode'], 50); // средний приоритет
-    $dispatcher->subscribe('pre-inline-collapse', [$this, 'onPreInlineCollapse']); // приоритет 0
+    $dispatcher->subscribe(EventConstant::PRE_NODE, [$this, 'onPreNode'], 100);  // высокий приоритет
+    $dispatcher->subscribe(EventConstant::POST_NODE, [$this, 'onPostNode'], 50); // средний приоритет
+    $dispatcher->subscribe(EventConstant::PRE_INLINE_COLLAPSE, [$this, 'onPreInlineCollapse']); // приоритет 0
 }
 ```
 
@@ -263,6 +266,7 @@ namespace MyModule;
 use HtmlDomParser\Contract\ModuleInterface;
 use HtmlDomParser\Contract\EventDispatcherInterface;
 use HtmlDomParser\Contract\NodeContextInterface;
+use HtmlDomParser\Core\Event\EventConstant;
 
 class ConfigurableModule implements ModuleInterface
 {
@@ -293,7 +297,7 @@ class ConfigurableModule implements ModuleInterface
     
     public function initialize(EventDispatcherInterface $dispatcher): void
     {
-        $dispatcher->subscribe('pre-node', function(NodeContextInterface $context) {
+        $dispatcher->subscribe(EventConstant::PRE_NODE, function(NodeContextInterface $context) {
             if ($this->options['add-class']) {
                 $class = $context->getAttribute('class') ?? '';
                 $context->setAttribute('class', trim($class . ' ' . $this->options['add-class']));
@@ -367,6 +371,14 @@ $document = $parser->parse();
 ```php
 <?php
 
+use HtmlDomParser\Contract\ModuleInterface;
+use HtmlDomParser\Contract\EventDispatcherInterface;
+use HtmlDomParser\Contract\NodeContextInterface;
+use HtmlDomParser\Contract\ErrorHandlerInterface;
+use HtmlDomParser\Contract\ErrorElementInterface;
+use HtmlDomParser\Core\Event\EventConstant;
+use HtmlDomParser\Core\Error\ErrorConstant;
+
 class ValidationModule implements ModuleInterface
 {
     private ErrorHandlerInterface $errorHandler;
@@ -391,7 +403,7 @@ class ValidationModule implements ModuleInterface
         // Получение обработчика ошибок (зависит от реализации)
         $this->errorHandler = $errorHandler;
         
-        $dispatcher->subscribe('post-node', [$this, 'validateNode']);
+        $dispatcher->subscribe(EventConstant::POST_NODE, [$this, 'validateNode']);
     }
     
     public function validateNode(NodeContextInterface $context): NodeContextInterface
@@ -399,8 +411,20 @@ class ValidationModule implements ModuleInterface
         if ($context->getName() === 'img' && !$context->hasAttribute('alt')) {
             // Добавление ошибки в обработчик
             // См. раздел [Обработка ошибок](./02-core--04-error-handling.md)
+            $error = $this->createError(
+                'missingAlt',
+                'Изображение не имеет alt-текста',
+                ErrorConstant::SEVERITY_WARNING
+            );
+            $this->errorHandler->addError($error);
         }
         return $context;
+    }
+    
+    private function createError(string $type, string $message, string $severity): ErrorElementInterface
+    {
+        // Создание узла-ошибки (упрощенно)
+        // В реальности создается через соответствующий сервис
     }
 }
 ```

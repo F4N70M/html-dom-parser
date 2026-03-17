@@ -32,7 +32,7 @@ HTML-строка
 
 ### 🔗 Схлопывание строчного контента {#inline-collapsing}
 
-Одна из ключевых особенностей — объединение последовательности строчных элементов (текст, выделения, ссылки) в один элемент с единым текстом и массивом **сущностей форматирования**:
+Одна из ключевых особенностей — объединение последовательности строчных элементов (текст, выделения, ссылки) в один элемент с единым текстом и коллекцией **фрагментов форматированного текста**:
 
 ```php
 // HTML: <p>Это <b>жирный</b> и <i>курсивный</i> текст</p>
@@ -41,14 +41,14 @@ HTML-строка
 $element->getLabel();
 // "Это жирный и курсивный текст"
 
-$element->getEntities()->toArray(); 
+$element->getFragments()->toArray(); 
 // [
 //   ['type' => 'b', 'start' => 4, 'end' => 10],
 //   ['type' => 'i', 'start' => 13, 'end' => 22]
 // ]
 ```
 
-Детальное описание механизма схлопывания — в разделе [InlineCollapser](./02-core--03-utilities.md#inline-collapser), а работа с сущностями форматирования — в разделе [Модель данных элемента](./02-core--01-data-model.md#entities).
+Детальное описание механизма схлопывания — в разделе [InlineCollapser](./02-core--03-utilities.md#inline-collapser), а работа с фрагментами форматирования — в разделе [Модель данных элемента](./02-core--01-data-model.md#fragments).
 
 ### 🧩 Расширяемость через события и модули {#extensibility}
 
@@ -78,7 +78,7 @@ $element->getEntities()->toArray();
 - **[`ElementInterface`](./04-appendix--02-api-reference.md#elementinterface)** — основной тип узла для тегов, содержит:
   - **Data** — основное смысловое содержимое.
   - **Label** — текстовая метка.
-  - **[`EntityListInterface`](./04-appendix--02-api-reference.md#entitylistinterface)** — коллекция сущностей форматирования.
+  - **[`RichTextFragmentListInterface`](./04-appendix--02-api-reference.md#richtextfragmentlistinterface)** — коллекция фрагментов форматирования.
   - **[`ElementListInterface`](./04-appendix--02-api-reference.md#elementlistinterface)** — коллекция дочерних элементов.
 - **[`NodeInterface`](./04-appendix--02-api-reference.md#nodeinterface)** — базовая единица с именем и атрибутами.
 
